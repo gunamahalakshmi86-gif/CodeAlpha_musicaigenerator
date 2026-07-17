@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Signal — Generative Music Machine</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --panel: #201d1a;
+  --panel-raised: #2b2723;
+  --panel-groove: #16130f;
+  --amber: #e8a33c;
+  --teal: #4fa89b;
+  --cream: #ede6d6;
+  --muted: #8a8175;
+  --red: #c1443d;
+}
+
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background: #0f0d0b;
+  font-family:'IBM Plex Mono', monospace;
+  color:var(--cream);
+  padding:24px;
+  display:flex;
+  justify-content:center;
+}
+
+.rack{
+  width:100%;
+  max-width:980px;
+  background: linear-gradient(180deg, var(--panel), #191613);
+  border-radius:10px;
+  border:1px solid #3a342c;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
+  padding:22px 24px 26px;
+}
+
+.nameplate{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  border-bottom:1px solid #3a342c;
+  padding-bottom:14px;
+  margin-bottom:20px;
+}
+.nameplate h1{
+  font-family:'Space Grotesk', sans-serif;
+  font-weight:700;
+  font-size:20px;
+  letter-spacing:0.14em;
+  margin:0;
+  color:var(--cream);
+}
+.nameplate h1 span{color:var(--amber);}
+.nameplate .sub{
+  font-size:10px;
+  letter-spacing:0.12em;
+  color:var(--muted);
+  text-transform:uppercase;
+}
+
+.layout{
+  display:grid;
+  grid-template-columns: 230px 1fr;
+  gap:20px;
+}
+@media (max-width: 720px){
+  .layout{grid-template-columns:1fr;}
+}
+
+.controls{
+  background:var(--panel-groove);
+  border-radius:8px;
+  padding:16px;
+  border:1px solid #322d26;
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+}
+
+.field label{
+  display:block;
+  font-family:'Space Grotesk', sans-serif;
+  font-size:10px;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin-bottom:6px;
+}
+.field select, .field input[type=range]{
+  width:100%;
+}
+select{
+  background:var(--panel-raised);
+  color:var(--cream);
+  border:1px solid #423b30;
+  border-radius:4px;
+  padding:7px 8px;
+  font-family:'IBM Plex Mono', monospace;
+  font-size:12px;
+}
+input[type=range]{
+  -webkit-appearance:none;
+  height:4px;
+  background:#423b30;
+  border-radius:2px;
+  outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:14px;height:14px;border-radius:50%;
+  background:var(--amber);
+  border:2px solid #1a1815;
+  cursor:pointer;
+}
+.readout{
+  font-size:11px;
+  color:var(--teal);
+  text-align:right;
+  margin-top:2px;
+}
+
+.buttons-row{
+  display:flex;
+  gap:8px;
+  margin-top:4px;
+}
+button{
+  font-family:'Space Grotesk', sans-serif;
+  font-size:11px;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  font-weight:600;
+  border-radius:5px;
+  border:1px solid #423b30;
+  background:var(--panel-raised);
+  color:var(--cream);
+  padding:10px 12px;
+  cursor:pointer;
+  transition: all 0.15s ease;
+  flex:1;
+}
+button:hover{border-color:var(--amber); color:var(--amber);}
+button.primary{
+  background:var(--amber);
+  color:#1a1613;
+  border-color:var(--amber);
+}
+button.primary:hover{filter:brightness(1.08); color:#1a1613;}
+button.playing{
+  background:var(--red);
+  border-color:var(--red);
+  color:#1a1613;
+}
+button:disabled{opacity:0.4; cursor:not-allowed;}
+
+.deck{
+  background:var(--panel-groove);
+  border-radius:8px;
+  border:1px solid #322d26;
+  padding:16px;
+}
+
+.track{
+  display:grid;
+  grid-template-columns: 90px 1fr 34px;
+  align-items:center;
+  gap:10px;
+  padding:9px 0;
+  border-bottom:1px solid #2a251f;
+}
+.track:last-child{border-bottom:none;}
+.track-name{
+  font-family:'Space Grotesk', sans-serif;
+  font-size:11px;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+}
+.steps{
+  display:grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap:4px;
+}
+.step{
+  aspect-ratio:1;
+  border-radius:3px;
+  background:#3a352c;
+  border:1px solid #464035;
+  transition: background 0.08s ease, box-shadow 0.08s ease;
+}
+.step.beat-marker{border-color:#5a5142;}
+.step.on{background: var(--track-color, var(--amber));}
+.step.cursor{box-shadow: 0 0 0 2px rgba(255,255,255,0.55) inset;}
+
+.mute{
+  justify-self:center;
+  width:22px;height:22px;
+  border-radius:50%;
+  border:1px solid #423b30;
+  background:var(--panel-raised);
+  cursor:pointer;
+}
+.mute.active{background:var(--teal); border-color:var(--teal);}
+
+.status{
+  margin-top:14px;
+  font-size:11px;
+  color:var(--muted);
+  display:flex;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.status b{color:var(--cream); font-weight:500;}
+
+.hint{
+  font-size:10px;
+  color:var(--muted);
+  margin-top:14px;
+  line-height:1.5;
+}
+</style>
+</head>
+<body>
+
+<div class="rack">
+  <div class="nameplate">
+    <h1>SIGNAL <span>//</span> GENERATIVE MUSIC MACHINE</h1>
+    <div class="sub">Model 4 · Endless Patch</div>
+  </div>
+
+  <div class="layout">
+    <div class="controls">
+      <div class="field">
+        <label>Key</label>
+        <select id="key">
+          <option value="0">C</option>
+          <option value="1">C#</option>
+          <option value="2">D</option>
+          <option value="3">D#</option>
+          <option value="4">E</option>
+          <option value="5">F</option>
+          <option value="6">F#</option>
+          <option value="7">G</option>
+          <option value="8">G#</option>
+          <option value="9">A</option>
+          <option value="10">A#</option>
+          <option value="11">B</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Scale</label>
+        <select id="scale">
+          <option value="minor">Minor</option>
+          <option value="major">Major</option>
+          <option value="dorian">Dorian</option>
+          <option value="pentatonic">Minor Pentatonic</option>
+          <option value="phrygian">Phrygian</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Mood</label>
+        <select id="mood">
+          <option value="ambient">Ambient</option>
+          <option value="lofi" selected>Lo-fi</option>
+          <option value="techno">Techno</option>
+          <option value="cinematic">Cinematic</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Tempo</label>
+        <input type="range" id="tempo" min="55" max="150" value="88">
+        <div class="readout" id="tempoRead">88 BPM</div>
+      </div>
+      <div class="field">
+        <label>Density</label>
+        <input type="range" id="density" min="10" max="90" value="50">
+        <div class="readout" id="densityRead">50%</div>
+      </div>
+
+      <div class="buttons-row">
+        <button id="generateBtn" class="primary">Generate</button>
+      </div>
+      <div class="buttons-row">
+        <button id="playBtn" disabled>Loading…</button>
+      </div>
+      <div class="hint">Melody and bass draw from the scale and current chord. Regenerate any time — the loop updates on the next bar.</div>
+    </div>
+
+    <div class="deck">
+      <div class="track">
+        <div class="track-name" style="color:var(--amber)">Melody</div>
+        <div class="steps" id="steps-melody"></div>
+        <div class="mute active" data-track="melody"></div>
+      </div>
+      <div class="track">
+        <div class="track-name" style="color:var(--teal)">Bass</div>
+        <div class="steps" id="steps-bass"></div>
+        <div class="mute active" data-track="bass"></div>
+      </div>
+      <div class="track">
+        <div class="track-name" style="color:#e0574c">Drums</div>
+        <div class="steps" id="steps-drums"></div>
+        <div class="mute active" data-track="drums"></div>
+      </div>
+      <div class="track">
+        <div class="track-name" style="color:#8d7bd6">Pad</div>
+        <div class="steps" id="steps-pad"></div>
+        <div class="mute active" data-track="pad"></div>
+      </div>
+
+      <div class="status">
+        <div>Chord: <b id="chordRead">—</b></div>
+        <div>Bar: <b id="barRead">1 / 4</b></div>
+        <div>Mood: <b id="moodRead">Lo-fi</b></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<script>
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const SCALES = {
+  minor:       [0,2,3,5,7,8,10],
+  major:       [0,2,4,5,7,9,11],
+  dorian:      [0,2,3,5,7,9,10],
+  pentatonic:  [0,3,5,7,10],
+  phrygian:    [0,1,3,5,7,8,10],
+};
+// Chord degrees (indices into scale array, triads) forming a 4-chord loop
+const PROGRESSIONS = [
+  [0,3,4,3], // i - iv - v - iv
+  [0,5,3,4], // i - VI - iv - v
+  [0,2,3,0], // i - III - iv - i
+  [0,4,5,3], // i - v - VI - iv
+];
+
+const STEP_COUNT = 16;
+let state = {
+  mood: 'lofi',
+  density: 50,
+  root: 0,
+  scaleName: 'minor',
+  patterns: { melody:[], bass:[], drums:[], pad:null },
+  chordCycle: [],
+  barIndex: 0,
+  mutes: { melody:true, bass:true, drums:true, pad:true },
+};
+
+const MOOD_PRESETS = {
+  ambient:   { tempoRange:[55,75],  drumProb:0.12, melodyProb:0.35, bassProb:0.3, reverb:0.7, swing:0 },
+  lofi:      { tempoRange:[70,92],  drumProb:0.55, melodyProb:0.45, bassProb:0.5, reverb:0.35, swing:0.12 },
+  techno:    { tempoRange:[120,142],drumProb:0.8,  melodyProb:0.3,  bassProb:0.6, reverb:0.15, swing:0 },
+  cinematic: { tempoRange:[75,100], drumProb:0.08, melodyProb:0.3,  bassProb:0.35, reverb:0.6, swing:0 },
+};
+
+function buildScaleNotes(root, scaleName, octaves=[3,4,5]){
+  const intervals = SCALES[scaleName];
+  const notes = [];
+  octaves.forEach(oct=>{
+    intervals.forEach(iv=>{
+      const midi = (oct+1)*12 + root + iv;
+      notes.push(Tone.Frequency(midi, "midi").toNote());
+    });
+  });
+  return notes; // ascending, low to high
+}
+
+function degreeChord(root, scaleName, degree, octave=3){
+  const intervals = SCALES[scaleName];
+  const len = intervals.length;
+  const triadDegrees = [degree, (degree+2)%len, (degree+4)%len];
+  return triadDegrees.map((d,i)=>{
+    // account for octave wrap when degree index passes scale length
+    const wraps = Math.floor((degree + [0,2,4][i]) / len);
+    const midi = (octave+1+wraps)*12 + root + intervals[d];
+    return Tone.Frequency(midi, "midi").toNote();
+  });
+}
+
+function chordName(root, scaleName, degree){
+  const intervals = SCALES[scaleName];
+  const len = intervals.length;
+  const pitch = (root + intervals[degree % len]) % 12;
+  // naive major/minor guess based on scale type & degree
+  const minorDegrees = { major:[1,2,5], minor:[0,3,4], dorian:[0,3,4], phrygian:[0,3,4] };
+  const isMinor = (minorDegrees[scaleName]||[]).includes(degree % len);
+  return NOTE_NAMES[pitch] + (isMinor ? 'm' : '');
+}
+
+function rand(p){ return Math.random() < p; }
+function choice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+function generatePatterns(){
+  const preset = MOOD_PRESETS[state.mood];
+  const densityMul = state.density/50; // 1.0 at slider midpoint
+  const scaleNotes = buildScaleNotes(state.root, state.scaleName, [3,4]);
+  const bassNotes = buildScaleNotes(state.root, state.scaleName, [2]);
+
+  const progression = choice(PROGRESSIONS);
+  state.chordCycle = progression;
+
+  // melody: sparser at start, denser as bar progresses; weighted toward chord tones
+  const melody = new Array(STEP_COUNT).fill(null);
+  for(let i=0;i<STEP_COUNT;i++){
+    const p = preset.melodyProb * densityMul * (i%4===0 ? 1.3 : 1);
+    if(rand(Math.min(p,0.95))){
+      melody[i] = choice(scaleNotes.slice(2)); // favor mid/upper register
+    }
+  }
+
+  // bass: locks to root of current chord on strong beats, occasional passing note
+  const bass = new Array(STEP_COUNT).fill(null);
+  for(let i=0;i<STEP_COUNT;i+=4){
+    bass[i] = null; // set below once we know chord per quarter
+  }
+  const bassProb = preset.bassProb * densityMul;
+  for(let i=0;i<STEP_COUNT;i++){
+    const strongBeat = i%4===0;
+    if(strongBeat || rand(bassProb*0.5)){
+      if(rand(strongBeat?0.95:bassProb)){
+        bass[i] = choice(bassNotes);
+      }
+    }
+  }
+
+  // drums: kick/snare/hat pattern shaped by mood
+  const drums = new Array(STEP_COUNT).fill(null);
+  const drumProb = preset.drumProb * densityMul;
+  for(let i=0;i<STEP_COUNT;i++){
+    const hits = [];
+    if(state.mood==='techno'){
+      if(i%4===0) hits.push('kick');
+      if(i%8===4) hits.push('snare');
+      if(i%2===1 && rand(0.85)) hits.push('hat');
+    } else if(state.mood==='lofi'){
+      if(i===0||i===10) hits.push('kick');
+      if(i===4||i===12) hits.push('snare');
+      if(rand(0.4*densityMul)) hits.push('hat');
+    } else {
+      // ambient / cinematic: sparse texture hits
+      if(rand(drumProb*0.3)) hits.push('hat');
+      if(i===0 && rand(drumProb)) hits.push('kick');
+    }
+    if(hits.length) drums[i] = hits;
+  }
+
+  // pad: one sustained chord per generate, chosen from progression start
+  const padChordDegree = progression[0];
+  state.patterns = { melody, bass, drums, pad: padChordDegree };
+  state.barIndex = 0;
+
+  renderSteps();
+  updateStatus();
+}
+
+function renderSteps(){
+  ['melody','bass','drums'].forEach(track=>{
+    const el = document.getElementById('steps-'+track);
+    el.innerHTML = '';
+    for(let i=0;i<STEP_COUNT;i++){
+      const d = document.createElement('div');
+      d.className = 'step' + (i%4===0?' beat-marker':'') + (state.patterns[track][i] ? ' on':'');
+      d.dataset.i = i;
+      const colors = {melody:'var(--amber)', bass:'var(--teal)', drums:'#e0574c'};
+      d.style.setProperty('--track-color', colors[track]);
+      el.appendChild(d);
+    }
+  });
+  // pad: show one long "on" bar across whole row to represent sustain
+  const padEl = document.getElementById('steps-pad');
+  padEl.innerHTML = '';
+  for(let i=0;i<STEP_COUNT;i++){
+    const d = document.createElement('div');
+    d.className = 'step' + (i%4===0?' beat-marker':'') + (state.patterns.pad!==null?' on':'');
+    d.style.setProperty('--track-color', '#8d7bd6');
+    padEl.appendChild(d);
+  }
+}
+
+function updateCursor(step){
+  ['melody','bass','drums','pad'].forEach(track=>{
+    const el = document.getElementById('steps-'+track);
+    [...el.children].forEach((c,i)=>c.classList.toggle('cursor', i===step));
+  });
+}
+
+function updateStatus(){
+  document.getElementById('chordRead').textContent = chordName(state.root, state.scaleName, state.patterns.pad ?? 0);
+  document.getElementById('barRead').textContent = `${(state.barIndex%4)+1} / 4`;
+  document.getElementById('moodRead').textContent = document.getElementById('mood').selectedOptions[0].textContent;
+}
+
+// ---------- Audio engine ----------
+let synths = null;
+let seq = null;
+let isPlaying = false;
+
+function buildSynths(){
+  const reverb = new Tone.Reverb({decay: 3.2, wet: MOOD_PRESETS[state.mood].reverb}).toDestination();
+  const melodySynth = new Tone.Synth({oscillator:{type:'triangle'}, envelope:{attack:0.01, decay:0.2, sustain:0.15, release:0.4}}).connect(reverb);
+  melodySynth.volume.value = -8;
+  const bassSynth = new Tone.MonoSynth({oscillator:{type:'sawtooth'}, envelope:{attack:0.01, decay:0.15, sustain:0.4, release:0.3}, filterEnvelope:{attack:0.01, decay:0.1, sustain:0.5, release:0.4, baseFrequency:150, octaves:2.5}}).connect(reverb);
+  bassSynth.volume.value = -6;
+  const kick = new Tone.MembraneSynth({pitchDecay:0.05, octaves:6, envelope:{attack:0.001, decay:0.35, sustain:0}}).toDestination();
+  kick.volume.value = -4;
+  const snare = new Tone.NoiseSynth({noise:{type:'white'}, envelope:{attack:0.001, decay:0.18, sustain:0}}).connect(reverb);
+  snare.volume.value = -10;
+  const hat = new Tone.MetalSynth({envelope:{attack:0.001, decay:0.06, release:0.02}, harmonicity:5.1, resonance:4000, modulationIndex:32}).connect(reverb);
+  hat.volume.value = -22;
+  const pad = new Tone.PolySynth(Tone.Synth, {oscillator:{type:'sine'}, envelope:{attack:1.2, decay:0.5, sustain:0.8, release:2.5}}).connect(reverb);
+  pad.volume.value = -14;
+
+  return { melodySynth, bassSynth, kick, snare, hat, pad, reverb };
+}
+
+function startSequencer(){
+  if(seq) seq.dispose();
+  let padPlayed = false;
+  seq = new Tone.Sequence((time, step)=>{
+    Tone.Draw.schedule(()=>{ updateCursor(step); }, time);
+
+    if(step===0){
+      state.barIndex++;
+      Tone.Draw.schedule(updateStatus, time);
+      const chordNotes = degreeChord(state.root, state.scaleName, state.patterns.pad ?? 0, 3);
+      if(state.mutes.pad){
+        synths.pad.releaseAll(time);
+        synths.pad.triggerAttack(chordNotes, time);
+      }
+    }
+
+    if(state.mutes.melody && state.patterns.melody[step]){
+      synths.melodySynth.triggerAttackRelease(state.patterns.melody[step], '16n', time);
+    }
+    if(state.mutes.bass && state.patterns.bass[step]){
+      synths.bassSynth.triggerAttackRelease(state.patterns.bass[step], '8n', time);
+    }
+    if(state.mutes.drums && state.patterns.drums[step]){
+      state.patterns.drums[step].forEach(hit=>{
+        if(hit==='kick') synths.kick.triggerAttackRelease('C1','8n', time);
+        if(hit==='snare') synths.snare.triggerAttackRelease('16n', time);
+        if(hit==='hat') synths.hat.triggerAttackRelease('C6','32n', time);
+      });
+    }
+  }, [...Array(STEP_COUNT).keys()], '16n');
+  seq.start(0);
+}
+
+async function togglePlay(){
+  if(!isPlaying){
+    await Tone.start();
+    if(!synths) synths = buildSynths();
+    if(!seq) startSequencer();
+    Tone.Transport.bpm.value = parseInt(document.getElementById('tempo').value);
+    Tone.Transport.swing = MOOD_PRESETS[state.mood].swing;
+    Tone.Transport.start();
+    isPlaying = true;
+    playBtn.textContent = 'Stop';
+    playBtn.classList.add('playing');
+  } else {
+    Tone.Transport.stop();
+    isPlaying = false;
+    playBtn.textContent = 'Play';
+    playBtn.classList.remove('playing');
+    updateCursor(-1);
+  }
+}
+
+// ---------- Wire up UI ----------
+const playBtn = document.getElementById('playBtn');
+const tempoSlider = document.getElementById('tempo');
+const densitySlider = document.getElementById('density');
+const keySelect = document.getElementById('key');
+const scaleSelect = document.getElementById('scale');
+const moodSelect = document.getElementById('mood');
+
+function readControls(){
+  state.root = parseInt(keySelect.value);
+  state.scaleName = scaleSelect.value;
+  state.mood = moodSelect.value;
+  state.density = parseInt(densitySlider.value);
+}
+
+tempoSlider.addEventListener('input', ()=>{
+  document.getElementById('tempoRead').textContent = tempoSlider.value + ' BPM';
+  Tone.Transport.bpm.value = parseInt(tempoSlider.value);
+});
+densitySlider.addEventListener('input', ()=>{
+  document.getElementById('densityRead').textContent = densitySlider.value + '%';
+});
+moodSelect.addEventListener('change', ()=>{
+  readControls();
+  const range = MOOD_PRESETS[state.mood].tempoRange;
+  const midpoint = Math.round((range[0]+range[1])/2);
+  tempoSlider.min = range[0]; tempoSlider.max = range[1]; tempoSlider.value = midpoint;
+  document.getElementById('tempoRead').textContent = midpoint + ' BPM';
+  if(synths) synths.reverb.wet.value = MOOD_PRESETS[state.mood].reverb;
+  Tone.Transport.bpm.value = midpoint;
+  Tone.Transport.swing = MOOD_PRESETS[state.mood].swing;
+});
+document.querySelectorAll('.mute').forEach(m=>{
+  m.addEventListener('click', ()=>{
+    const t = m.dataset.track;
+    state.mutes[t] = !state.mutes[t];
+    m.classList.toggle('active', state.mutes[t]);
+  });
+});
+document.getElementById('generateBtn').addEventListener('click', ()=>{
+  readControls();
+  generatePatterns();
+});
+playBtn.addEventListener('click', togglePlay);
+
+// init
+readControls();
+generatePatterns();
+playBtn.disabled = false;
+playBtn.textContent = 'Play';
+</script>
+</body>
+  </html>
